@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#171c20"><meta name="description" content="Secret words. Familiar faces. One undercover. A multiplayer word game for your next office break."><title>Undercover — The office is sus.</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js" defer></script><script src="/app.js" defer></script>
+</head>
+<body>
+<header class="site-header"><a class="brand" href="/" aria-label="Undercover home"><span class="brand-mark">u<span>·</span></span> UNDERCOVER<span class="edition">OFFICE CLUB</span></a><div class="connection"><span id="connection-dot"></span><span id="connection-label">Connecting</span></div></header>
+<main id="app"></main>
+<footer><span>A little less work. A little more suspicion.</span><button class="text-button" id="rules-open">How to play ↗</button></footer>
+<dialog id="rules"><div class="modal-top"><span class="eyebrow">THE BRIEFING</span><button class="icon-button" id="rules-close" aria-label="Close rules">✕</button></div><h2>Trust your team.<br>Or maybe don’t.</h2><ol class="rules-list"><li><b>Meet in a room.</b> 4–10 people join on their own phones. Speak in person.</li><li><b>Peek at your word.</b> Everyone has the same word, except one player with a similar word. Nobody knows their role.</li><li><b>Drop a clue.</b> Take turns saying one short hint out loud. Don’t say your word!</li><li><b>Talk. Then vote.</b> Discuss who sounds different. Vote privately; no self-votes.</li><li><b>Catch the Undercover.</b> Civilians win by finding them. Undercover wins by surviving to the final 3.</li></ol><p class="muted">A tie triggers one 30-second revote among tied players. A second tie or no votes means nobody leaves. Timed-out turns move on automatically. Eliminated players watch until the next game.</p><button class="primary full" id="rules-got">Got it. Trust nobody. ↗</button></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+</body></html>
