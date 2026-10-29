@@ -45,3 +45,7 @@ Optional: `ROOM_NAMESPACE` (unique environment prefix), `PUBLIC_URL` (canonical 
 - **Player went offline while using another app**: iOS/Android can suspend web tabs. Return to the original tab. Presence restores on the next sync.
 - **Game moved on**: a timer/other action advanced the state before an old button click arrived. Sync updates the screen; try the current action.
 - **Large groups/usage limits**: inspect Redis/Vercel usage; polling is suitable for small office groups, not a claim of massive-scale load testing.
+
+## Screenshot error: room creation returns 503
+
+Check `/api/health` on the actual domain. `STORAGE_NOT_CONFIGURED` means the server lacks the paired Redis REST URL/token; `STORAGE_UNAVAILABLE` means the configured service cannot be reached or used. Connect Upstash to **this project**, include the Production environment, and redeploy. A frontend/name change alone cannot connect storage. If a Vercel integration cannot find this project, connect the account/team that owns it; do not create a duplicate project or reuse another app’s secrets.

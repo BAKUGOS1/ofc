@@ -1,4 +1,4 @@
-# Undercover · Office Club
+# UNDERCVR · Office Club
 
 A mobile-first word deduction game for 4–10 colleagues. Create a private room, share its QR code, give clues out loud, and vote for the outsider. No accounts or app installation.
 
@@ -78,3 +78,5 @@ npm run build
 The full flow is tested with real HTTP requests and independent rendered DOM sessions. The Redis adapter is contract-tested with a simulated SDK; a real Upstash instance and deployed Vercel routing have **not** been exercised. Physical iPhone/Android testing, router behaviour and final visual/browser QA remain necessary. The cloud browser could not reach the local execution server in this environment.
 
 See [deployment checklist](docs/DEPLOYMENT.md) and [research and decisions](docs/RESEARCH-PLAN.md).
+
+The app brand is **UNDERCVR**, matching `undercvr.vercel.app`. “Undercover” still describes the hidden role in the rules. Health and room endpoints distinguish missing storage setup (`STORAGE_NOT_CONFIGURED`) from an unreachable service (`STORAGE_UNAVAILABLE`). The entry screen blocks room submission until its availability check succeeds.

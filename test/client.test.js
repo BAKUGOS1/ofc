@@ -131,3 +131,73 @@ test(
     }
   },
 );
+
+test("offline room setup blocks submission and recovers after a successful health check", async () => {
+  const server = createGameServer();
+  await new Promise((r) => server.http.listen(0, "127.0.0.1", r));
+  const url = `http://127.0.0.1:${server.http.address().port}`;
+  let healthy = false,
+    gameRequests = 0,
+    dom;
+  try {
+    dom = await JSDOM.fromURL(url, {
+      runScripts: "dangerously",
+      resources: "usable",
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        w.AbortController = AbortController;
+        w.fetch = (path, options) => {
+          if (path === "/api/health" && !healthy)
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({ ok: false, code: "STORAGE_NOT_CONFIGURED" }),
+                {
+                  status: 503,
+                  headers: { "Content-Type": "application/json" },
+                },
+              ),
+            );
+          if (path === "/api/game") gameRequests++;
+          return fetch(new URL(path, url), options);
+        };
+      },
+    });
+    const w = dom.window;
+    await until(
+      () =>
+        w.document.querySelector("#connection-label")?.textContent ===
+        "Setup needed",
+      "missing setup shown",
+    );
+    assert.equal(w.document.title, "UNDERCVR — Office Club");
+    assert.match(w.document.querySelector(".brand").textContent, /UNDERCVR/);
+    assert.equal(
+      w.document.querySelector("#entry button[type=submit]").disabled,
+      true,
+    );
+    assert.match(
+      w.document.querySelector("#service-message").textContent,
+      /host/,
+    );
+    assert.equal(gameRequests, 0);
+    healthy = true;
+    click(w, "#service-retry");
+    await until(
+      () =>
+        w.document.querySelector("#entry button[type=submit]")?.disabled ===
+        false,
+      "health recovery",
+    );
+    assert.equal(w.document.querySelector("#service-notice").hidden, true);
+    w.document.querySelector("#name").value = "Recovered";
+    click(w, "#entry button[type=submit]");
+    await until(
+      () => w.document.querySelector("[data-action=ready]"),
+      "room created",
+    );
+    assert.equal(gameRequests, 1);
+  } finally {
+    dom?.window.close();
+    await server.close();
+  }
+});

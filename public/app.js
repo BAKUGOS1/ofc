@@ -24,6 +24,8 @@ try {
 } catch {
   /* storage may be disabled */
 }
+let serviceStatus = "checking",
+  serviceMessage = "Checking room availability…";
 const queryCode = new URLSearchParams(location.search).get("room") || "";
 function saveSession(value) {
   session = value;
@@ -46,6 +48,54 @@ function connection(ok, label) {
   $(".connection").classList.toggle("online", ok);
   $("#connection-label").textContent =
     label || (ok ? "Connected" : "Reconnecting");
+}
+function availability(status, message) {
+  serviceStatus = status;
+  serviceMessage = message;
+  const notice = $("#service-notice"),
+    text = $("#service-message"),
+    retry = $("#service-retry");
+  if (notice) {
+    notice.hidden = status === "ready";
+    text.textContent = message;
+    retry.hidden = status === "checking";
+    retry.disabled = status === "checking";
+  }
+  const submit = $("#entry button[type=submit]");
+  if (submit) submit.disabled = status !== "ready" || busy;
+}
+async function checkHealth() {
+  availability("checking", "Checking room availability…");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch("/api/health", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const result = await response.json();
+    if (response.ok && result.ok) {
+      availability("ready", "");
+      connection(true, "Ready to play");
+    } else {
+      const setup = result.code === "STORAGE_NOT_CONFIGURED";
+      availability(
+        setup ? "setup" : "offline",
+        setup
+          ? "Rooms aren’t set up yet. Ask the host to finish connecting game storage."
+          : "Rooms are offline right now. Check the connection and try again.",
+      );
+      connection(false, setup ? "Setup needed" : "Rooms offline");
+    }
+  } catch {
+    availability(
+      "offline",
+      "Can’t reach the room service. Check your internet connection, then retry.",
+    );
+    connection(false, "Rooms offline");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 function requestId() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -73,6 +123,14 @@ async function request(type, data = {}) {
       cache: "no-store",
     });
     const result = await response.json();
+    if (response.status === 503) {
+      availability(
+        result.code === "STORAGE_NOT_CONFIGURED" ? "setup" : "offline",
+        result.error,
+      );
+    } else if (result.ok) {
+      availability("ready", "");
+    }
     if (result.serverTime)
       serverOffset = result.serverTime - (started + Date.now()) / 2;
     connection(
@@ -181,7 +239,7 @@ function eyes() {
 }
 function landing() {
   $("#app").innerHTML =
-    `<div class="hero-grid"><section><div class="badge"><i></i> YOUR NEXT OFFICE BREAK, SORTED</div><h1>Same team.<br>Different <em>secrets.</em></h1><p class="intro">One word. One outsider. A room full of very suspicious colleagues.</p><div class="facts"><span>◉ <b>4–10 players</b></span><span>◷ <b>5–10 min</b></span><span>↗ <b>No downloads</b></span></div><div class="dossier"><img src="/agents.svg" width="600" height="320" alt="Three playful undercover agents on colourful personnel cards"></div></section><section class="entry-card"><div class="card-heading"><span class="eyebrow">THE BREAK ROOM</span><span>01 / JOIN THE FUN</span></div><h2>Who’s in on it?</h2><p class="muted">Bring your colleagues. Leave your poker face on.</p><div class="tabs" role="group" aria-label="Room action"><button aria-pressed="${tab === "create"}" data-tab="create" class="${tab === "create" ? "active" : ""}">Create a room</button><button aria-pressed="${tab === "join"}" data-tab="join" class="${tab === "join" ? "active" : ""}">Join a room</button></div><form id="entry"><p class="invite-notice">${tab === "join" ? "You’re invited. Enter your name to take a seat." : "Start a private room. Invite your team next."}</p><div class="field"><label for="name">YOUR NAME</label><input id="name" name="name" placeholder="What do they call you at work?" minlength="2" maxlength="20" autocomplete="nickname" required></div>${tab === "join" ? `<div class="field"><label for="code">ROOM CODE</label><input class="code-input" id="code" name="code" value="${escape(queryCode.toUpperCase())}" placeholder="ABC234" minlength="6" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" required></div>` : ""}<button class="primary full" type="submit">${tab === "create" ? "Create the room" : "Join the room"} <span>↗</span></button><p id="entry-error" class="error-inline" role="alert"></p><p class="micro">No account. No app. Just a little healthy suspicion.</p></form><div class="mini-divider">FIRST TIME UNDERCOVER?</div><button class="secondary full" data-rules>Get the 30-second briefing ↗</button></section></div><section class="how-strip"><div class="step"><span class="step-number">01 —</span><div><b>Keep your word close.</b><p>Everyone gets a secret word.<br>One person’s is a little different.</p></div></div><div class="step"><span class="step-number">02 —</span><div><b>Read between the clues.</b><p>Say a hint out loud. Listen closely.<br>Who doesn’t quite fit in?</p></div></div><div class="step"><span class="step-number">03 —</span><div><b>Vote your suspicions.</b><p>Find the Undercover before<br>they blend into the final three.</p></div></div></section>`;
+    `<div class="hero-grid"><section><div class="badge"><i></i> YOUR NEXT OFFICE BREAK, SORTED</div><h1>Same team.<br>Different <em>secrets.</em></h1><p class="intro">One word. One outsider. A room full of very suspicious colleagues.</p><div class="facts"><span>◉ <b>4–10 players</b></span><span>◷ <b>5–10 min</b></span><span>↗ <b>No downloads</b></span></div><div class="dossier"><img src="/agents.svg" width="600" height="320" alt="Three playful undercover agents on colourful personnel cards"></div></section><section class="entry-card"><div class="card-heading"><span class="eyebrow">THE BREAK ROOM</span><span>01 / JOIN THE FUN</span></div><h2>Who’s in on it?</h2><p class="muted">Bring your colleagues. Leave your poker face on.</p><div class="tabs" role="group" aria-label="Room action"><button aria-pressed="${tab === "create"}" data-tab="create" class="${tab === "create" ? "active" : ""}">Create a room</button><button aria-pressed="${tab === "join"}" data-tab="join" class="${tab === "join" ? "active" : ""}">Join a room</button></div><form id="entry"><div class="service-notice" id="service-notice" role="status" ${serviceStatus === "ready" ? "hidden" : ""}><p id="service-message">${escape(serviceMessage)}</p><button type="button" class="text-button" id="service-retry" ${serviceStatus === "checking" ? "hidden" : ""}>Check again ↻</button></div><p class="invite-notice">${tab === "join" ? "You’re invited. Enter your name to take a seat." : "Start a private room. Invite your team next."}</p><div class="field"><label for="name">YOUR NAME</label><input id="name" name="name" placeholder="What do they call you at work?" minlength="2" maxlength="20" autocomplete="nickname" required></div>${tab === "join" ? `<div class="field"><label for="code">ROOM CODE</label><input class="code-input" id="code" name="code" value="${escape(queryCode.toUpperCase())}" placeholder="ABC234" minlength="6" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" required></div>` : ""}<button class="primary full" type="submit" ${serviceStatus !== "ready" ? "disabled" : ""}>${tab === "create" ? "Create the room" : "Join the room"} <span>↗</span></button><p id="entry-error" class="error-inline" role="alert"></p><p class="micro">No account. No app. Just a little healthy suspicion.</p></form><div class="mini-divider">NEW TO UNDERCVR?</div><button class="secondary full" data-rules>Get the 30-second briefing ↗</button></section></div><section class="how-strip"><div class="step"><span class="step-number">01 —</span><div><b>Keep your word close.</b><p>Everyone gets a secret word.<br>One person’s is a little different.</p></div></div><div class="step"><span class="step-number">02 —</span><div><b>Read between the clues.</b><p>Say a hint out loud. Listen closely.<br>Who doesn’t quite fit in?</p></div></div><div class="step"><span class="step-number">03 —</span><div><b>Vote your suspicions.</b><p>Find the Undercover before<br>they blend into the final three.</p></div></div></section>`;
   try {
     $("#name").value = localStorage.getItem("undercover-name") || "";
   } catch {}
@@ -196,7 +254,7 @@ function landing() {
   );
   $("#entry").onsubmit = async (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || serviceStatus !== "ready") return;
     busy = true;
     const button = e.submitter;
     button.disabled = true;
@@ -219,11 +277,12 @@ function landing() {
     if (result) saveSession(result.session);
     busy = false;
     if (button.isConnected) {
-      button.disabled = false;
+      button.disabled = serviceStatus !== "ready";
       button.textContent =
         tab === "create" ? "Create the room ↗" : "Join the room ↗";
     }
   };
+  if ($("#service-retry")) $("#service-retry").onclick = checkHealth;
   bindCommon();
 }
 function roster() {
@@ -407,7 +466,7 @@ function render() {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: "Join our Undercover game",
+            title: "Join our UNDERCVR game",
             text: `Room ${state.code} · Trust nobody.`,
             url,
           });
@@ -486,16 +545,7 @@ document.addEventListener("visibilitychange", () => {
     schedulePoll();
   } else sync();
 });
-window.addEventListener("online", () => sync());
+window.addEventListener("online", () => (session ? sync() : checkHealth()));
 render();
 if (session) sync();
-else
-  fetch("/api/health")
-    .then(async (r) => {
-      connection(r.ok, r.ok ? "Ready to play" : "Setup needed");
-      if (!r.ok) {
-        const result = await r.json();
-        toast(result.error);
-      }
-    })
-    .catch(() => connection(false, "Server unavailable"));
+else checkHealth();

@@ -1565,3 +1565,24 @@ h2 {
     transition: none !important;
   }
 }
+.service-notice {
+  border: 1px solid #f4a77d44;
+  background: #f4a77d0a;
+  padding: 12px 15px;
+  border-radius: 10px;
+  color: var(--orange);
+  margin: 16px 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.service-notice p {
+  margin: 0;
+}
+.service-notice .text-button {
+  color: var(--orange);
+  padding: 6px 0;
+  text-decoration: underline;
+}
+.service-notice[hidden] {
+  display: none;
+}

@@ -27,7 +27,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const server = createGameServer({ store: getStore() });
   const port = Number(process.env.PORT) || 3000;
   server.http.listen(port, "0.0.0.0", () => {
-    console.log(`\nUNDERCOVER · Office Club\nLocal: http://localhost:${port}`);
+    console.log(`\nUNDERCVR · Office Club\nLocal: http://localhost:${port}`);
     try {
       for (const entries of Object.values(networkInterfaces()))
         for (const ip of entries || [])

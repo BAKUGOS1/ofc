@@ -170,5 +170,18 @@ test("Redis store uses NX creation, CAS and TTL; production refuses ephemeral ro
   assert.match(evalCall[0], /cjson.decode/);
   assert.equal(evalCall[2][0], 1);
   assert.equal(evalCall[2][2], 7200);
-  assert.throws(() => getStore({ VERCEL: "1" }), /Upstash/);
+  assert.throws(() => getStore({ VERCEL: "1" }), /not configured/);
+});
+
+test("missing storage has a stable error code without exposing credentials", async () => {
+  const { storageFailure } = await import("../lib/http.js");
+  const { StorageSetupError } = await import("../lib/store.js");
+  const missing = storageFailure(new StorageSetupError());
+  assert.equal(missing.code, "STORAGE_NOT_CONFIGURED");
+  assert.match(missing.error, /host/);
+  const unavailable = storageFailure(
+    new Error("secret-provider-url-and-token"),
+  );
+  assert.equal(unavailable.code, "STORAGE_UNAVAILABLE");
+  assert.equal(JSON.stringify(unavailable).includes("secret-provider"), false);
 });
