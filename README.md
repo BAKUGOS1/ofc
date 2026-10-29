@@ -1,10 +1,26 @@
 # Undercover · Office Club
 
-A mobile-first multiplayer word deduction web app for 4–10 colleagues. Open a browser, join a room, keep your word secret, and find the outsider. No accounts or app installation.
+A mobile-first word deduction game for 4–10 colleagues. Create a private room, share its QR code, give clues out loud, and vote for the outsider. No accounts or app installation.
 
-## Play on the same Wi-Fi
+## Deploy to Vercel
 
-Install **Node.js 22 or newer** on a laptop, then:
+1. Import **BAKUGOS1/ofc** into Vercel. Use the repository root, **Other** framework, and **Node.js 22.x**. Build/output settings are in `vercel.json`.
+2. In the project’s **Storage / Marketplace**, connect **Upstash Redis**. Choose a plan appropriate for your usage. It supplies `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` variable names are also accepted.
+3. Enable the credentials in the intended environment, then deploy/redeploy. A deployment created before adding them must be redeployed.
+4. Open `/api/health`: it must return **HTTP 200** and `{"ok":true,"mode":"shared"}`. A 503 means storage is missing or unreachable; the app deliberately refuses to create unreliable in-memory production rooms.
+5. Open the site on four separate phones or browser profiles, create/join a room, and complete a game before sharing it widely.
+
+No migrations, public database keys or client secrets are needed. **Redis credentials are server-only.** Never add them to `public/` or commit `.env` files.
+
+The static client is built to `dist/`; `api/index.js` handles `/api/*`. Secret word packs, tokens and backend source are excluded from the static output. Online play needs internet; players can use any network. Being together on Wi-Fi is useful for spoken clues but no longer required for connectivity.
+
+**Environment isolation:** preview deployments use a namespace based on the Git branch, separate from production. Use separate Redis databases for stronger preview/production isolation. Optionally set `ROOM_NAMESPACE` explicitly per environment. Rooms from the same branch share state across its deployments. Set `PUBLIC_URL` only if you need a canonical HTTPS invite origin; otherwise invites use the visited hostname.
+
+This repository is prepared for Vercel; no live deployment or Redis provisioning was performed as part of preparation.
+
+## Local Wi-Fi, without runtime internet
+
+Install Node.js 22 or newer:
 
 ```bash
 git clone https://github.com/BAKUGOS1/ofc.git
@@ -13,61 +29,52 @@ npm ci
 npm start
 ```
 
-1. Connect the laptop and every phone to the same Wi-Fi.
-2. Open the **Wi-Fi address printed in the terminal**, such as `http://192.168.1.25:3000`, on the laptop. Do not use `localhost` for an invite: it refers to each phone itself.
-3. Create a room, choose a pack, and share its QR code or invite link.
-4. Every player opens that link in iPhone Safari or Android Chrome, enters their name, and taps **I’m ready**. The host also marks ready, then starts.
-5. Keep the laptop awake and the terminal running throughout the game.
+Connect every phone and the laptop to the same Wi-Fi. Open the terminal’s **Wi-Fi URL** (for example `http://192.168.1.25:3000`), create a room and share the QR. Do not use `localhost` for a phone invite. Keep the laptop awake and terminal running.
 
-Internet is needed for the initial `npm ci`. After installation, local play has **no external requests, CDN assets, fonts, analytics, or cloud database**. Speech happens in the room; no microphone access is requested.
+Without Redis variables, development uses an in-memory store. Restarting it clears rooms and scores. Internet is needed for initial installation, but all game assets, fonts and QR generation are local afterward. If testing Redis locally, set variables from `.env.example`, then use `node --env-file=.env.local server.js` (Node does not load that file automatically).
 
-**Windows:** if no Wi-Fi address is printed, run `ipconfig` and find the Wi-Fi adapter’s IPv4 address. Allow Node.js through Windows Firewall on your trusted **Private** network. Do not disable the firewall. Guest/office Wi-Fi may isolate devices; use an approved network that permits devices to communicate. A browser may ask for local-network permission.
+On Windows, use `ipconfig` to find the Wi-Fi adapter’s IPv4 address if the server cannot print it. Allow Node.js on your trusted Private network in Windows Firewall. Guest/office Wi-Fi may isolate devices; use an approved network that permits peer communication. A browser may ask for local-network permission.
 
-## House rules
+## How to play
 
-- One random player is Undercover. Civilians receive one word; Undercover receives a related word. Roles remain unknown to everyone, including Undercover, until elimination/results.
-- Reveal and memorise your word privately. Confirm once you have it. The first clue round starts when everybody confirms.
-- Each alive player says one hint out loud, in the displayed order. Clue timers are configurable (30/45/60 seconds). The host can skip a stalled turn.
+- Every player joins and taps **I’m ready**. The host chooses one of four original word packs and 30/45/60 seconds per clue, then starts.
+- One random player gets a related but different word. Nobody knows their role. Reveal your own word, memorise it and continue. Words auto-hide after 8 seconds and when the tab is hidden. Revealing another player’s word is never part of the client payload.
+- Everyone confirms before clues start, or the game moves on after two minutes so a disconnected player cannot block it.
+- Take turns giving short hints out loud. Don’t say the word! The host can skip a stalled speaker, and expired turns move on.
 - Discuss for up to 60 seconds; the host can open voting early.
-- Every alive player casts one irreversible, private vote. No self-votes. Voting ends once everyone votes or after 45 seconds; missing votes abstain.
-- A tie triggers one 30-second runoff among tied players. All alive players vote again. A second tie, or no votes, eliminates nobody.
-- The eliminated player’s role and vote totals are revealed, but surviving players’ words stay private. Eliminated players spectate and cannot vote.
-- Civilians win when Undercover is eliminated. Undercover wins by surviving to the final three. **This is a deliberate short office-game variant**, not a claim to reproduce every official rule.
-- Winners each earn one point. Scores persist across games in the room. The host can return to the lobby and play another game.
+- Every alive player gets one private, locked vote. No self-votes. Missing votes abstain after 45 seconds.
+- A tie triggers one 30-second runoff among tied players. A repeated tie or no votes eliminates nobody.
+- Civilians win by eliminating Undercover. Undercover wins by surviving to the final three. This is our deliberate short office-game house rule.
+- Eliminated players spectate. Winners earn one point; scores stay in the room for the next game. The host can end an unfinished game without awarding points.
 
-Four original packs: **Office life, Food & drinks, Everyday things, Hinglish mix** (80 word pairs total). No copied artwork or proprietary word lists. This is an independent project, not affiliated with the commercial Undercover game.
+Packs: **Office life, Food & drinks, Everyday things, Hinglish mix** — 80 original word pairs. Independent project; no affiliation with the commercial Undercover game.
 
-## Connection behaviour
+## Reliability and performance
 
-Refresh the same tab to recover the same player using an opaque token stored in that tab’s `sessionStorage`. Display names alone cannot claim a player. Opening the same session elsewhere replaces the earlier connection. Words hide when the tab loses visibility or disconnects.
+- Authoritative server state is stored in Redis with a **two-hour idle expiry**. Session tokens live in each player’s tab. Refresh the same tab to rejoin; names alone cannot recover a player.
+- Redis version checks use a Lua compare-and-set operation: concurrent readiness, joins and votes cannot overwrite each other. Recently processed action IDs prevent duplicate mutation; phase keys reject outdated clicks.
+- Short HTTP sync is intentional for this turn-based game: about every 1.5 seconds in-game, 3 seconds in the lobby, and 15 seconds for a hidden tab. No long-running daemon, server interval, WebSocket affinity, pub/sub adapter or cron is needed.
+- Unchanged views do not rebuild the UI. Timers render locally using server-clock correction. Secrets auto-hide on tab switches.
+- Presence expires after 45 seconds without a successful sync. The host role transfers on the next request when the host is away. Phone operating systems may suspend background tabs; returning to the same tab restores its identity.
+- Deadlines are checked on requests. If everyone goes offline, the next request advances the expired phase and gives a fresh deadline for the next phase, rather than silently completing a game with nobody present.
+- API data is never CDN-cached. Request sizes, entry attempts and action/sync rates are limited. Names are escaped, cross-origin browser POSTs are rejected and CSP blocks third-party scripts.
+- Polling and rate limiting consume Vercel invocations and Redis commands. Check your selected plans and usage; this project does not promise unlimited free hosting.
 
-The host role transfers to a connected player when the host disconnects. Disconnected players remain in the game; turn/vote timers prevent those phases from blocking. The reveal phase requires everyone to confirm; if someone permanently leaves there, the host can end the game, remove them from the lobby, and restart. Players can leave or be removed in the lobby. New players join only between games.
-
-Rooms and scores live **in server memory**. Restarting the server clears them. Empty disconnected rooms expire after two hours. Use one server process; horizontal scaling and persistent storage are not implemented.
-
-## Development and tests
+## Development
 
 ```bash
-npm run dev    # restart server when source changes
-npm run check  # JavaScript syntax checks
-npm test       # game rules + real network integration + DOM flow tests
+npm run dev
+npm run check
+npm test
+npm run build
 ```
 
-The server owns role assignment, timers, phase transitions and vote validation. Per-player state projections omit other players’ words, role assignments and session tokens. User names are escaped before rendering. Requests have size and frequency limits. All dependencies are locked in `package-lock.json`.
+`npm test` covers game rules, privacy, concurrent clients, stale clicks, idempotency, host failover, HTTP security, Redis adapter command contracts and a full four-client rendered DOM game through replay. CI runs checks, tests and static build.
 
-- `lib/game.js` — rules, transitions, private state projections
-- `lib/words.js` — server-only original word pairs
-- `server.js` — HTTP, room/session handling, Socket.IO, QR codes
-- `public/` — responsive web client, no build step
-- `test/` — automated validation
-- `docs/RESEARCH-PLAN.md` — research, design decisions and implementation plan
+`Dockerfile` supports a long-running deployment with the same Redis environment variables. It does not replace the Vercel function setup.
 
-## Optional internet hosting
+## Verification limits
 
-Deploy as a **long-running Node.js service with WebSocket support**, using `npm ci --omit=dev` and `npm start`. Configure the platform’s `PORT` variable and optionally `PUBLIC_URL=https://your-domain.example` for QR links. Use HTTPS for internet play. The same link can then work without a laptop or shared Wi-Fi, but requires internet.
+The full flow is tested with real HTTP requests and independent rendered DOM sessions. The Redis adapter is contract-tested with a simulated SDK; a real Upstash instance and deployed Vercel routing have **not** been exercised. Physical iPhone/Android testing, router behaviour and final visual/browser QA remain necessary. The cloud browser could not reach the local execution server in this environment.
 
-A static-only host (including GitHub Pages) cannot run this multiplayer server. This repository is not configured as Vercel serverless functions. No online deployment is included; the GitHub source is ready to run locally or host on a compatible service.
-
-## Verification scope
-
-Automated checks cover private state, host restrictions, readiness, turn order, both win conditions, scoring, invalid/duplicate/self votes, ties, timeouts, HTTP/QR endpoints, real multi-client play, reconnect and host transfer. Browser-device testing on physical iPhones/Android phones and a real office router remains necessary. A cloud-browser preview could not reach the execution environment’s local server.
+See [deployment checklist](docs/DEPLOYMENT.md) and [research and decisions](docs/RESEARCH-PLAN.md).

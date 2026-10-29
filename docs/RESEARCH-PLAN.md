@@ -37,3 +37,11 @@ An office-safe Undercover-style browser game for colleagues physically together,
 ## Design direction
 
 A playful office-club dossier: dark charcoal, lime actions, lavender and peach player accents, CSS secret-agent cards. Text, native system fonts and inline/local assets keep it fast and completely local. No personal office questions or employee ranking.
+
+## Vercel readiness revision
+
+The first local-only version used Socket.IO and a process-local map. The deployment-ready version uses a stateless HTTP API plus shared Redis room records and atomic version checks. Current [Vercel WebSocket docs](https://vercel.com/docs/functions/websockets) support WebSockets, but reconnects have no guaranteed instance affinity: keeping durable rooms only in process memory is still incorrect. Short snapshot sync is a deliberate simplification for a spoken, turn-based game.
+
+[Upstash EVAL](https://upstash.com/docs/redis/sdks/ts/commands/scripts/eval) executes the room compare-and-set atomically. Redis TTL expires idle rooms without cron. Public output contains only static assets; Vercel routes `/api/*` to a Node function. Real Redis and deployment smoke checks are documented in DEPLOYMENT.md and remain release checks.
+
+UI changes: original SVG agent illustration, invitation-first lobby, guest seats, host-only settings, sticky readiness controls, clear disabled-start reason, automatic private-word hiding, speaker progress, locked vote feedback, smaller spectator UI, keyboard focus management, reduced-motion support and 16px inputs to avoid iPhone input zoom.
