@@ -433,6 +433,11 @@ function render() {
         if (busy) return;
         busy = true;
         el.disabled = true;
+        if (type === "revealed") {
+          peek = false;
+          clearTimeout(autoHide);
+          render();
+        }
         const result = await send(type);
         busy = false;
         if (type === "leave" && result) {

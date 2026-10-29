@@ -73,6 +73,11 @@ test(
         click(w, "#secret");
         assert.ok(w.document.querySelector(".secret-word").textContent);
         click(w, "[data-action=revealed]");
+        assert.equal(
+          w.document.querySelector(".secret-word"),
+          null,
+          "confirming a word must hide it immediately, before the request completes",
+        );
       }
       await until(() => read().phase === "clues", "clue phase");
       for (let i = 0; i < 4; i++) {
